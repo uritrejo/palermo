@@ -1,5 +1,10 @@
 package db
 
+import (
+	"fmt"
+	"strconv"
+)
+
 // Msg will be used as both an input and an output structure to describe a message
 type Msg struct {
 	Id string
@@ -16,6 +21,10 @@ func NewMsg(id, content string) *Msg {
 	}
 
 	return msg
+}
+
+func (m *Msg) String() string {
+	return fmt.Sprintf("Msg: { id: %s, content: %s, isPalindrome: %s }", m.Id, m.Content, strconv.FormatBool(m.IsPalindrome))
 }
 
 // isPalindrome returns true if the given string is a palindrome, false otherwise
