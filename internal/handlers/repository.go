@@ -3,29 +3,21 @@ package handlers
 import (
 	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
+	"github.com/uritrejo/palermo/internal/db"
 	"net/http"
 )
 
 // todo: consider moving this into the app package
 
-
+// Repository will implement the handlers for our REST API
+// it will store all messages in msgDb
 type Repository struct {
-	//db
+	msgDb db.MsgDB
 }
 
-// todo: receive the db as an arg
-func NewRepository() *Repository {
+func NewRepository(msgDb db.MsgDB) *Repository {
 	return &Repository{
-
-	}
-}
-
-func (rp *Repository) HandleHome(w http.ResponseWriter, r *http.Request) {
-	//log.Info("HandleHome request made")
-
-	_, err := w.Write([]byte("Good night slothopie <3"))
-	if err != nil {
-		log.Error("Error writing msg to writer: ", err.Error())
+		msgDb: msgDb,
 	}
 }
 
@@ -40,6 +32,8 @@ func (rp *Repository) HandleCreateMsg(w http.ResponseWriter, r *http.Request) {
 		log.Error("Error writing msg to writer: ", err.Error())
 	}
 }
+
+// todo: also don't forget about the status internal error, lo regresas con http.Error
 
 func (rp *Repository) HandleListMsgs(w http.ResponseWriter, r *http.Request) {
 	// todo: basically the same as the one below

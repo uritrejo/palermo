@@ -16,7 +16,7 @@ func IsErrMsgNotFound(err error) bool {
 type ErrIdUnavailable struct {}
 
 func (e ErrIdUnavailable) Error() string {
-	return "The ID  provided is already in use"
+	return "The ID provided is already in use"
 }
 
 func IsErrIdUnavailable(err error) bool {

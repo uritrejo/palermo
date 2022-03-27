@@ -3,6 +3,7 @@ package db
 import (
 	"fmt"
 	"strconv"
+	"time"
 )
 
 // Msg will be used as both an input and an output structure to describe a message
@@ -10,7 +11,7 @@ type Msg struct {
 	Id string
 	Content string
 	IsPalindrome bool
-	// modtime???
+	ModTime time.Time
 }
 
 func NewMsg(id, content string) *Msg {
@@ -18,6 +19,7 @@ func NewMsg(id, content string) *Msg {
 		Id: id,
 		Content: content,
 		IsPalindrome: isPalindrome(content),
+		ModTime: time.Now(),
 	}
 
 	return msg
