@@ -1,13 +1,13 @@
 package handlers
 
 import (
+	"encoding/json"
 	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
 	"github.com/uritrejo/palermo/internal/db"
 	"net/http"
+	"strings"
 )
-
-// todo: consider moving this into the app package
 
 // Repository will implement the handlers for our REST API
 // it will store all messages in msgDb
@@ -21,68 +21,130 @@ func NewRepository(msgDb db.MsgDB) *Repository {
 	}
 }
 
-// POST
 func (rp *Repository) HandleCreateMsg(w http.ResponseWriter, r *http.Request) {
-	// try to unmarshall json
-	// then add it to the database
-
-
-	_, err := w.Write([]byte("create msg"))
+	var msg db.Msg
+	err := json.NewDecoder(r.Body).Decode(&msg)
 	if err != nil {
-		log.Error("Error writing msg to writer: ", err.Error())
+		handleReqErr(w, "Failed to decode body into msg object", http.StatusBadRequest, err.Error())
+		return
 	}
+
+	msg.Id = strings.TrimSpace(msg.Id)
+	if msg.Id == "" {
+		handleReqErr(w, "Message id must not be empty", http.StatusBadRequest, "")
+		return
+	}
+
+	err = rp.msgDb.CreateMsg(&msg)
+	if err != nil {
+		if db.IsErrIdUnavailable(err) {
+			handleReqErr(w, "CreateMsg request failed, " + msg.Id + " is already in use", http.StatusConflict, err.Error())
+			return
+		}
+		handleReqErr(w, "Unexpected error during creation of message", http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	log.Debug("A message was successfully created: ", msg)
 }
 
-// todo: also don't forget about the status internal error, lo regresas con http.Error
-
-func (rp *Repository) HandleListMsgs(w http.ResponseWriter, r *http.Request) {
-	// todo: basically the same as the one below
-
-	_, err := w.Write([]byte("List Msgs"))
+func (rp *Repository) HandleRetrieveAllMsgs(w http.ResponseWriter, r *http.Request) {
+	msgs, err := rp.msgDb.GetAllMsgs()
 	if err != nil {
-		log.Error("Error writing msg to writer: ", err.Error())
+		handleReqErr(w, "Unexpected error during retrieval of all messages", http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	msgJson, err := json.Marshal(msgs)
+	if err != nil {
+		handleReqErr(w, "Unexpected error during marshalling of messages", http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	_, err = w.Write(msgJson)
+	if err != nil {
+		handleReqErr(w, "Unexpected error during encoding of messages into json", http.StatusInternalServerError, err.Error())
+		return
 	}
 }
 
 func (rp *Repository) HandleRetrieveMsg(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	key := vars["id"]
+	id := mux.Vars(r)["id"]
 
-	log.Info("The key was: ", key)
-
-	// error 404
-
-	// todo: encode in json and write it to the w
-	// json.NewEncoder(w).Encode(article)
-	_, err := w.Write([]byte("retrieved msg"))
+	msg, err := rp.msgDb.GetMsg(id)
 	if err != nil {
-		log.Error("Error writing msg to writer: ", err.Error())
+		if db.IsErrMsgNotFound(err) {
+			handleReqErr(w, "Msg with id " + id + " was not found", http.StatusNotFound, err.Error())
+			return
+		}
+		handleReqErr(w, "Unexpected error during retrieval of message", http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	log.Debug("Successfully retrieved message: ", msg)
+
+	msgJson, err := json.Marshal(msg)
+	if err != nil {
+		handleReqErr(w, "Unexpected error during marshalling of message", http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	_, err = w.Write(msgJson)
+	if err != nil {
+		handleReqErr(w, "Unexpected error during encoding of message into json", http.StatusInternalServerError, err.Error())
+		return
 	}
 }
 
 func (rp *Repository) HandleUpdateMsg(w http.ResponseWriter, r *http.Request) {
-	r.ParseForm()
+	id := mux.Vars(r)["id"]
 
-	// use strings.trim to reassign the messageid
-
-	// here you can accept both adding the ID or not in the body
-	// but if it's added, then it has to match, else return a 404 (bref you can't accept the id to be changed)
-	// so you don't have to duplicate it
-
-	_, err := w.Write([]byte("Update Msg"))
+	var msg db.Msg
+	err := json.NewDecoder(r.Body).Decode(&msg)
 	if err != nil {
-		log.Error("Error writing msg to writer: ", err.Error())
+		handleReqErr(w, "Failed to decode body into msg object", http.StatusBadRequest, err.Error())
+		return
 	}
+
+	if id != msg.Id {
+		handleReqErr(w, "The id in the request doesn't match the id in the msg object", http.StatusBadRequest, "")
+		return
+	}
+
+	err = rp.msgDb.UpdateMsg(&msg)
+	if err != nil {
+		if db.IsErrMsgNotFound(err) {
+			handleReqErr(w, "Msg with id " + id + " was not found", http.StatusNotFound, err.Error())
+			return
+		}
+		handleReqErr(w, "Unexpected error during creation of message", http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	log.Debug("A message was successfully created: ", msg)
 }
 
 func (rp *Repository) HandleDeleteMsg(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
 
-	// get the id, then delete it
-	// this can remove it while iterating
-	// Articles = append(Articles[:index], Articles[index+1:]...)
-
-	_, err := w.Write([]byte("Delete Msg"))
+	err := rp.msgDb.DeleteMsg(id)
 	if err != nil {
-		log.Error("Error writing msg to writer: ", err.Error())
+		if db.IsErrMsgNotFound(err) {
+			handleReqErr(w, "Msg with id " + id + " was not found", http.StatusNotFound, err.Error())
+			return
+		}
+		handleReqErr(w, "Unexpected error during deletion of message" , http.StatusInternalServerError, err.Error())
+		return
 	}
+
+	log.Debug("Successfully deleted message with id: ", id)
+}
+
+// handleReqErr logs the error and replies to the request
+// baseErrorMsg is the error message that will be sent back,
+// internalErrorMsg will be added to local logs
+// this distinction is done to avoid exposing internal details
+func handleReqErr(w http.ResponseWriter, baseErrorMsg string, code int, internalErrorMsg string) {
+	log.Error(baseErrorMsg + ": " + internalErrorMsg + "; returned code " + http.StatusText(code))
+	http.Error(w, baseErrorMsg, code)
 }

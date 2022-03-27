@@ -101,18 +101,18 @@ func initLogger(logLevel string) (io.Closer, error) {
 		return nil, errors.New("unsupported log level: " + logLevel)
 	}
 
-	log.Info("Log level set to ", logLevel)
+	log.Info("\n\nLog initialized, log level set to ", logLevel)
 	return f, nil
 }
 
-// will later take in a config obj
+// router returns the handler of our API paths
 func router() http.Handler {
 	router := mux.NewRouter()
 
 	// handlers
 	router.HandleFunc("/createMsg", repo.HandleCreateMsg).Methods("POST")
-	router.HandleFunc("/listMsgs", repo.HandleListMsgs)
 	router.HandleFunc("/retrieveMsg/{id}", repo.HandleRetrieveMsg)
+	router.HandleFunc("/retrieveAllMsgs", repo.HandleRetrieveAllMsgs)
 	router.HandleFunc("/updateMsg/{id}", repo.HandleUpdateMsg).Methods("POST")
 	router.HandleFunc("/deleteMsg/{id}", repo.HandleDeleteMsg)
 
