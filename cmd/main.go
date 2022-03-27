@@ -41,6 +41,7 @@ func main() {
 	}
 }
 
+// todo: probably will just remove the support for a file and direct output to a file from cli
 func initLogger() error {
 	//f, err := os.OpenFile(logFile, os.O_APPEND|os.O_APPEND|os.O_WRONLY, 0600)
 	//if err != nil {
@@ -60,11 +61,15 @@ func router() http.Handler {
 
 	// add handlers
 	router.HandleFunc("/", repo.HandleHome)
-	router.HandleFunc("/createMsg", repo.HandleCreateMsg)
-	router.HandleFunc("/retrieveMsg", repo.HandleRetrieveMsg)
-	router.HandleFunc("/updateMsg", repo.HandleUpdateMsg)
-	router.HandleFunc("/deleteMsg", repo.HandleDeleteMsg)
+	router.HandleFunc("/createMsg", repo.HandleCreateMsg).Methods("POST")
 	router.HandleFunc("/listMsgs", repo.HandleListMsgs)
+	// aka path variables
+	router.HandleFunc("/retrieveMsg/{id}", repo.HandleRetrieveMsg)
+	router.HandleFunc("/updateMsg/{id}", repo.HandleUpdateMsg).Methods("POST")
+	router.HandleFunc("/deleteMsg/{id}", repo.HandleDeleteMsg)
+
+	// todo: add a handler for all the rest to return a message
+	// an example was in the gorilla example documentation
 
 	router.Use(handlers.LoggingMiddleware)
 

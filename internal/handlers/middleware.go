@@ -15,4 +15,4 @@ func LoggingMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// todo: maybe do
+// todo: maybe do a security one
