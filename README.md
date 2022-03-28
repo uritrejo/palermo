@@ -1,9 +1,6 @@
 # Palermo
 
-
-
-
-TODO: link to openAPI, add a little diagram
+RESTful API for managing messages. It stores and provides details about these messages, specifically whether a message is a palindrome
 
 ## Build & Run
 
@@ -15,8 +12,7 @@ cd palermo
 >> time="2022-03-27T15:47:12-04:00" level=info msg="Palermo server is listening on localhost:4422"
 ```
 
-todo: distinguish usage of binary to usage of api
-### Usage
+### Options
 Run `./bin/palermo -h` to see the flags available:
 ```shell
 Usage of ./bin/palermo:
@@ -30,7 +26,21 @@ Usage of ./bin/palermo:
         -port=<port>: port on which to listen and serve (default 4422)
 ```
 
-## Commands
-add api routes
+## Architecture
 
-example usages
+![](docs/palermo-architecture-diagram.png)
+
+## Paths
+Refer to [api/APIdoc.html](api/APIdoc.html) for details on the API paths.
+Summary & Examples with curl:
+- /v1/createMsg POST
+    - `curl -X POST localhost:4422/createMsg -H "Content-Type: application/json" -d '{"id":"1", "content":"kayak"}'`
+- /v1/retrieveMsg/{id} GET
+    - `curl localhost:4422/retrieveMsg/1`
+- /v1/retrieveAllMsgs GET
+    - `curl localhost:4422/retrieveAllMsgs`
+- /v1/updateMsg/{id} POST
+    - `curl -X POST localhost:4422/updateMsg/1 -H "Content-Type: application/json" -d '{"id":"1", "content":"canoe"}'`
+- /v1/deleteMsg/{id} GET
+    - `curl localhost:4422/deleteMsg/1`
+    

@@ -3,6 +3,7 @@ package db
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -31,11 +32,13 @@ func (m *Msg) String() string {
 }
 
 // isPalindrome returns true if the given string is a palindrome, false otherwise
+// it will ignore the case, but not the whitespaces or punctuations
 func isPalindrome(sequence string) bool {
+	seq := strings.ToLower(sequence)
 	isPalindrome := true
-	l := len(sequence)
+	l := len(seq)
 	for i := 0; i < l/2; i++ {
-		if sequence[i] != sequence[l-1-i] {
+		if seq[i] != seq[l-1-i] {
 			isPalindrome = false
 			break
 		}

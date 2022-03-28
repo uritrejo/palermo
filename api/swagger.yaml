@@ -32,7 +32,7 @@ paths:
 
   /v1/retrieveMsg/{id}:
     get:
-      description: Retrieves the message associated with the id provided, if found.
+      description: Retrieves the message associated with the id provided
       parameters:
         - name: id
           description: Message Id
@@ -57,9 +57,6 @@ paths:
           description: Message was succesfully retrieved, it will be returned in the response body
           schema:
             $ref: '#/definitions/AllMessages'
-#          type: array
-#          items:
-#            $ref: '#/definitions/Message'
         500:
           description: Unexpected internal error
 
@@ -92,7 +89,7 @@ paths:
 
   /v1/deleteMsg/{id}:
     get:
-      description: Deletes the message associated with the id provided from the database, if found.
+      description: Deletes the message associated with the id provided from the database
       parameters:
         - name: id
           description: Message Id
@@ -101,9 +98,7 @@ paths:
           type: string
       responses:
         200:
-          description: Message was succesfully retrieved, it will be returned in the response body
-          schema:
-            $ref: '#/definitions/Message'
+          description: Message was succesfully deleted
         404:
           description: A message with the id provided was not found
         500:
@@ -132,6 +127,5 @@ definitions:
     items:
       $ref: '#/definitions/Message'
 
-host: localhost
 schemes:
   - http

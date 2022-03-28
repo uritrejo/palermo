@@ -117,6 +117,7 @@ func router() http.Handler {
 	router.HandleFunc("/v1/deleteMsg/{id}", repo.HandleDeleteMsg)
 
 	// middlewares
+	router.Use(handlers.RecoveryMiddleware)
 	router.Use(handlers.LoggingMiddleware)
 
 	return router

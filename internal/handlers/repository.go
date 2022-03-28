@@ -33,7 +33,6 @@ func (rp *Repository) HandleCreateMsg(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// todo: leave a comment about leading and trailing whitespaces being removed, also say that it can't be empty
 	msgRcv.Id = strings.TrimSpace(msgRcv.Id)
 	if msgRcv.Id == "" {
 		handleReqErr(w, "Message id must not be empty", http.StatusBadRequest, "")
