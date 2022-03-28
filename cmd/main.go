@@ -15,11 +15,11 @@ import (
 )
 
 const (
-	defaultPort = 4422
-	defaultDbType = "basic"
+	defaultPort        = 4422
+	defaultDbType      = "basic"
 	defaultMongoDbPort = 27017
-	defaultLogLevel = "debug"
-	logFile = "palermo.log"
+	defaultLogLevel    = "debug"
+	logFile            = "palermo.log"
 )
 
 var (
@@ -30,10 +30,10 @@ func main() {
 	// flags
 	var dbType, logLevel string
 	var port, mongoDbPort int
-	flag.IntVar(&port, "port", defaultPort, "-port=<port>: port on which to listen and serve; the default is " + strconv.Itoa(defaultPort))
-	flag.StringVar(&dbType, "dbtype", defaultDbType, "-dbtype=<type>: types are 'basic' (local memory) and 'mongodb; the default is " + defaultDbType)
-	flag.IntVar(&mongoDbPort, "mongodbport", defaultMongoDbPort, "-mongodbport=<port>: port where mongo db is listening; the default is " + strconv.Itoa(defaultMongoDbPort))
-	flag.StringVar(&logLevel, "loglevel", defaultLogLevel, "-loglevel=<level>: levels are info, debug, trace; default is " + defaultLogLevel)
+	flag.IntVar(&port, "port", defaultPort, "-port=<port>: port on which to listen and serve")
+	flag.StringVar(&dbType, "dbtype", defaultDbType, "-dbtype=<type>: types are 'basic' (local memory) and 'mongodb")
+	flag.IntVar(&mongoDbPort, "mongodbport", defaultMongoDbPort, "-mongodbport=<port>: port where mongo db is listening")
+	flag.StringVar(&logLevel, "loglevel", defaultLogLevel, "-loglevel=<level>: levels are info, debug, trace")
 	flag.Parse()
 
 	closer, err := initLogger(logLevel)
@@ -51,8 +51,8 @@ func main() {
 
 	addr := "localhost:" + strconv.Itoa(port)
 	server := &http.Server{
-		Handler: router(),
-		Addr: addr,
+		Handler:      router(),
+		Addr:         addr,
 		WriteTimeout: 15 * time.Second,
 		ReadTimeout:  15 * time.Second,
 	}
@@ -110,11 +110,11 @@ func router() http.Handler {
 	router := mux.NewRouter()
 
 	// handlers
-	router.HandleFunc("/createMsg", repo.HandleCreateMsg).Methods("POST")
-	router.HandleFunc("/retrieveMsg/{id}", repo.HandleRetrieveMsg)
-	router.HandleFunc("/retrieveAllMsgs", repo.HandleRetrieveAllMsgs)
-	router.HandleFunc("/updateMsg/{id}", repo.HandleUpdateMsg).Methods("POST")
-	router.HandleFunc("/deleteMsg/{id}", repo.HandleDeleteMsg)
+	router.HandleFunc("/v1/createMsg", repo.HandleCreateMsg).Methods("POST")
+	router.HandleFunc("/v1/retrieveMsg/{id}", repo.HandleRetrieveMsg)
+	router.HandleFunc("/v1/retrieveAllMsgs", repo.HandleRetrieveAllMsgs)
+	router.HandleFunc("/v1/updateMsg/{id}", repo.HandleUpdateMsg).Methods("POST")
+	router.HandleFunc("/v1/deleteMsg/{id}", repo.HandleDeleteMsg)
 
 	// middlewares
 	router.Use(handlers.LoggingMiddleware)

@@ -1,0 +1,137 @@
+swagger: '2.0'
+info:
+  title: 'Palermo Server'
+  version: 1.0.0
+  description: 'REST API for managing messages. It stores and provides details about these messages, specifically whether or not a message is a palindrome'
+produces:
+  - application/json
+consumes:
+  - application/json
+paths:
+  /v1/createMsg:
+    post:
+      description: Creates a message and stores it in the database
+      parameters:
+        - name: message
+          in: body
+          description: Message to create, user only needs to specify message.Id and message.Content, other fields will be ignored during creation
+          required: true
+          schema:
+            $ref: '#/definitions/Message'
+      responses:
+        200:
+          description: Message was succesfully created and stored
+        400:
+          description: Bad request
+        409:
+          description: Msg.Id provided is already in use
+        415:
+          description: Content-Type is unsupported
+        500:
+          description: Unexpected internal error
+
+  /v1/retrieveMsg/{id}:
+    get:
+      description: Retrieves the message associated with the id provided, if found.
+      parameters:
+        - name: id
+          description: Message Id
+          in: path
+          required: true
+          type: string
+      responses:
+        200:
+          description: Message was succesfully retrieved, it will be returned in the response body
+          schema:
+            $ref: '#/definitions/Message'
+        404:
+          description: A message with the id provided was not found
+        500:
+          description: Unexpected internal error
+
+  /v1/retrieveAllMsgs:
+    get:
+      description: Retrieves all the messages in the database
+      responses:
+        200:
+          description: Message was succesfully retrieved, it will be returned in the response body
+          schema:
+            $ref: '#/definitions/AllMessages'
+#          type: array
+#          items:
+#            $ref: '#/definitions/Message'
+        500:
+          description: Unexpected internal error
+
+  /v1/updateMsg/{id}:
+    post:
+      description: Updates a message previously stored in the database
+      parameters:
+        - name: id
+          in: path
+          type: string
+          description: Message Id, must match the Id specified in the body of the request
+          required: true
+        - name: message
+          in: body
+          description: Message to update, user only needs to specify message.Id and message.Content, other fields will be ignored during creation
+          required: true
+          schema:
+            $ref: '#/definitions/Message'
+      responses:
+        200:
+          description: Message was succesfully deleted
+        400:
+          description: Bad request
+        404:
+          description: A message with the id provided was not found
+        415:
+          description: Content-Type is unsupported
+        500:
+          description: Unexpected internal error
+
+  /v1/deleteMsg/{id}:
+    get:
+      description: Deletes the message associated with the id provided from the database, if found.
+      parameters:
+        - name: id
+          description: Message Id
+          in: path
+          required: true
+          type: string
+      responses:
+        200:
+          description: Message was succesfully retrieved, it will be returned in the response body
+          schema:
+            $ref: '#/definitions/Message'
+        404:
+          description: A message with the id provided was not found
+        500:
+          description: Unexpected internal error
+
+definitions:
+  Message:
+    type: object
+    properties:
+      id:
+        description: Unique message identifier (required). Leading and trailing whitespaces will be removed.
+        type: string
+        example: "id1234"
+      content:
+        description: Content is the actual message to store and evaluate
+        type: string
+        example: "kayak"
+      isPalindrome:
+        description: True if Msg.content is palindrome (value set by the server, will be ignored if set in createMsg or updateMsg requests)
+        type: boolean
+      modTime:
+        description: Timestamp of last modification time for a given message (set by the server, will be ignored from user)
+        type: string
+  AllMessages:
+    type: array
+    items:
+      $ref: '#/definitions/Message'
+
+host: localhost
+schemes:
+  - http

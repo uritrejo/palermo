@@ -2,7 +2,6 @@ package db
 
 import (
 	"sync"
-	"time"
 )
 
 // BasicMsgDB stores messages in local memory in a thread safe map
@@ -48,8 +47,8 @@ func (b *BasicMsgDB) UpdateMsg(newMsg *Msg) error {
 	}
 
 	msg.(*Msg).Content = newMsg.Content
-	msg.(*Msg).IsPalindrome = isPalindrome(newMsg.Content)
-	msg.(*Msg).ModTime = time.Now()
+	msg.(*Msg).IsPalindrome = newMsg.IsPalindrome
+	msg.(*Msg).ModTime = newMsg.ModTime
 
 	return nil
 }

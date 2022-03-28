@@ -14,11 +14,11 @@ import (
 
 type ToDoItem struct {
 	//Id          primitive.ObjectID `bson:"_id"`  // seems like it's automatically added
-	Code        string             `bson:"code"`
-	CreatedAt   time.Time          `bson:"created_at"`
-	Title       string             `bson:"title"`
-	Description string             `bson:"description"`
-	Completed   bool               `bson:"completed"`
+	Code        string    `bson:"code"`
+	CreatedAt   time.Time `bson:"created_at"`
+	Title       string    `bson:"title"`
+	Description string    `bson:"description"`
+	Completed   bool      `bson:"completed"`
 }
 
 func (t *ToDoItem) ToString() string {
@@ -39,7 +39,7 @@ func AddToDoItem(item *ToDoItem) error {
 	//Create a handle to the respective collection in the database.
 	collection := client.Database(dbName).Collection(collectionName)
 
-	_, err = collection.InsertOne(context.TODO(), item)  // there's also InsertMany
+	_, err = collection.InsertOne(context.TODO(), item) // there's also InsertMany
 	if err != nil {
 		return err
 	}
@@ -125,7 +125,6 @@ func MarkCompleted(code string) (*ToDoItem, error) {
 		primitive.E{Key: "completed", Value: true},
 	}}}
 
-
 	//Get MongoDB connection using connectionhelper.
 	client, err := GetMongoClient()
 	if err != nil {
@@ -205,9 +204,6 @@ func GetMongoClient() (*mongo.Client, error) {
 	})
 	return clientInstance, clientInstanceError
 }
-
-
-
 
 // todo: delete this once the rest work:
 // test ones for the DB

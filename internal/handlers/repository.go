@@ -22,30 +22,38 @@ func NewRepository(msgDb db.MsgDB) *Repository {
 }
 
 func (rp *Repository) HandleCreateMsg(w http.ResponseWriter, r *http.Request) {
-	var msg db.Msg
-	err := json.NewDecoder(r.Body).Decode(&msg)
+	if r.Header.Get("Content-Type") != "application/json" {
+		handleReqErr(w, "Unsupported content type", http.StatusUnsupportedMediaType, "")
+	}
+
+	var msgRcv db.Msg
+	err := json.NewDecoder(r.Body).Decode(&msgRcv)
 	if err != nil {
 		handleReqErr(w, "Failed to decode body into msg object", http.StatusBadRequest, err.Error())
 		return
 	}
 
-	msg.Id = strings.TrimSpace(msg.Id)
-	if msg.Id == "" {
+	// todo: leave a comment about leading and trailing whitespaces being removed, also say that it can't be empty
+	msgRcv.Id = strings.TrimSpace(msgRcv.Id)
+	if msgRcv.Id == "" {
 		handleReqErr(w, "Message id must not be empty", http.StatusBadRequest, "")
 		return
 	}
 
-	err = rp.msgDb.CreateMsg(&msg)
+	// the NewMsg constructor will add the mod time and determine if it's a palindrome:
+	msg := db.NewMsg(msgRcv.Id, msgRcv.Content)
+
+	err = rp.msgDb.CreateMsg(msg)
 	if err != nil {
 		if db.IsErrIdUnavailable(err) {
-			handleReqErr(w, "CreateMsg request failed, " + msg.Id + " is already in use", http.StatusConflict, err.Error())
+			handleReqErr(w, "CreateMsg request failed, "+msg.Id+" is already in use", http.StatusConflict, err.Error())
 			return
 		}
 		handleReqErr(w, "Unexpected error during creation of message", http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	log.Debug("A message was successfully created: ", msg)
+	log.Debug("A message was successfully created: ", msg.String())
 }
 
 func (rp *Repository) HandleRetrieveAllMsgs(w http.ResponseWriter, r *http.Request) {
@@ -61,6 +69,7 @@ func (rp *Repository) HandleRetrieveAllMsgs(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	_, err = w.Write(msgJson)
 	if err != nil {
 		handleReqErr(w, "Unexpected error during encoding of messages into json", http.StatusInternalServerError, err.Error())
@@ -74,14 +83,14 @@ func (rp *Repository) HandleRetrieveMsg(w http.ResponseWriter, r *http.Request) 
 	msg, err := rp.msgDb.GetMsg(id)
 	if err != nil {
 		if db.IsErrMsgNotFound(err) {
-			handleReqErr(w, "Msg with id " + id + " was not found", http.StatusNotFound, err.Error())
+			handleReqErr(w, "Msg with id "+id+" was not found", http.StatusNotFound, err.Error())
 			return
 		}
 		handleReqErr(w, "Unexpected error during retrieval of message", http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	log.Debug("Successfully retrieved message: ", msg)
+	log.Debug("Successfully retrieved message: ", msg.String())
 
 	msgJson, err := json.Marshal(msg)
 	if err != nil {
@@ -89,6 +98,7 @@ func (rp *Repository) HandleRetrieveMsg(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	_, err = w.Write(msgJson)
 	if err != nil {
 		handleReqErr(w, "Unexpected error during encoding of message into json", http.StatusInternalServerError, err.Error())
@@ -97,31 +107,38 @@ func (rp *Repository) HandleRetrieveMsg(w http.ResponseWriter, r *http.Request) 
 }
 
 func (rp *Repository) HandleUpdateMsg(w http.ResponseWriter, r *http.Request) {
+	if r.Header.Get("Content-Type") != "application/json" {
+		handleReqErr(w, "Unsupported content type", http.StatusUnsupportedMediaType, "")
+	}
+
 	id := mux.Vars(r)["id"]
 
-	var msg db.Msg
-	err := json.NewDecoder(r.Body).Decode(&msg)
+	var msgRcv db.Msg
+	err := json.NewDecoder(r.Body).Decode(&msgRcv)
 	if err != nil {
 		handleReqErr(w, "Failed to decode body into msg object", http.StatusBadRequest, err.Error())
 		return
 	}
 
-	if id != msg.Id {
+	if id != msgRcv.Id {
 		handleReqErr(w, "The id in the request doesn't match the id in the msg object", http.StatusBadRequest, "")
 		return
 	}
 
-	err = rp.msgDb.UpdateMsg(&msg)
+	// the NewMsg constructor will add the mod time and determine if it's a palindrome:
+	msg := db.NewMsg(msgRcv.Id, msgRcv.Content)
+
+	err = rp.msgDb.UpdateMsg(msg)
 	if err != nil {
 		if db.IsErrMsgNotFound(err) {
-			handleReqErr(w, "Msg with id " + id + " was not found", http.StatusNotFound, err.Error())
+			handleReqErr(w, "Msg with id "+id+" was not found", http.StatusNotFound, err.Error())
 			return
 		}
 		handleReqErr(w, "Unexpected error during creation of message", http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	log.Debug("A message was successfully created: ", msg)
+	log.Debug("A message was successfully updated: ", msg.String())
 }
 
 func (rp *Repository) HandleDeleteMsg(w http.ResponseWriter, r *http.Request) {
@@ -130,10 +147,10 @@ func (rp *Repository) HandleDeleteMsg(w http.ResponseWriter, r *http.Request) {
 	err := rp.msgDb.DeleteMsg(id)
 	if err != nil {
 		if db.IsErrMsgNotFound(err) {
-			handleReqErr(w, "Msg with id " + id + " was not found", http.StatusNotFound, err.Error())
+			handleReqErr(w, "Msg with id "+id+" was not found", http.StatusNotFound, err.Error())
 			return
 		}
-		handleReqErr(w, "Unexpected error during deletion of message" , http.StatusInternalServerError, err.Error())
+		handleReqErr(w, "Unexpected error during deletion of message", http.StatusInternalServerError, err.Error())
 		return
 	}
 

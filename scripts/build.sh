@@ -1,12 +1,13 @@
 #!/bin/bash
 
-set -e
+set -ex
 
 export GO111MODULE=on
 
 #go vet ./...
 
-go build cmd/main.go
+suffix=$(go env GOEXE)
+go build -o bin/palermo${suffix} cmd/main.go
 
 go test ./...
 
