@@ -13,6 +13,10 @@ func NewBasicMsgDB() *BasicMsgDB {
 	return &BasicMsgDB{}
 }
 
+func (b *BasicMsgDB) Close() {
+	//noop
+}
+
 func (b *BasicMsgDB) GetMsg(id string) (*Msg, error) {
 	msg, exists := b.msgs.Load(id)
 	if !exists {

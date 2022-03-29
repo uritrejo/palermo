@@ -54,7 +54,7 @@ paths:
       description: Retrieves all the messages in the database
       responses:
         200:
-          description: Message was succesfully retrieved, it will be returned in the response body
+          description: Messages were succesfully retrieved, they will be returned in the response body. If no messages were in the database, the messages array will be empty.
           schema:
             $ref: '#/definitions/AllMessages'
         500:
@@ -77,7 +77,7 @@ paths:
             $ref: '#/definitions/Message'
       responses:
         200:
-          description: Message was succesfully deleted
+          description: Message was succesfully updated
         400:
           description: Bad request
         404:
@@ -123,9 +123,12 @@ definitions:
         description: Timestamp of last modification time for a given message (set by the server, will be ignored from user)
         type: string
   AllMessages:
-    type: array
-    items:
-      $ref: '#/definitions/Message'
+    type: object
+    properties:
+      messages:
+        type: array
+        items:
+          $ref: '#/definitions/Message'
 
 schemes:
   - http

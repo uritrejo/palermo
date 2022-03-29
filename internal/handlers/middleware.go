@@ -16,9 +16,9 @@ func LoggingMiddleware(next http.Handler) http.Handler {
 func RecoveryMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
-			err := recover()
-			if err != nil {
-				log.Error("Recovered from panic: ", err)
+			rec := recover()
+			if rec != nil {
+				log.Error("Recovered from panic: ", rec)
 				w.WriteHeader(http.StatusInternalServerError)
 			}
 		}()

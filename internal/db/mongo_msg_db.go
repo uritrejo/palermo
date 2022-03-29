@@ -2,233 +2,166 @@ package db
 
 import (
 	"context"
+	log "github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"log"
-	"strconv"
-	"sync"
 	"time"
 )
 
-type ToDoItem struct {
-	//Id          primitive.ObjectID `bson:"_id"`  // seems like it's automatically added
-	Code        string    `bson:"code"`
-	CreatedAt   time.Time `bson:"created_at"`
-	Title       string    `bson:"title"`
-	Description string    `bson:"description"`
-	Completed   bool      `bson:"completed"`
+const (
+	DefaultMsgDbName         = "msgDB"
+	DefaultMsgCollectionName = "msgCollection"
+	defaultConnectTimeout    = 7 * time.Second
+)
+
+// MongoMsgDB will store the messages in the database running on the address provided
+type MongoMsgDB struct {
+	client        *mongo.Client
+	msgCollection *mongo.Collection // we could get it from the client, but this saves a lot of redundant code
 }
 
-func (t *ToDoItem) ToString() string {
-	return "Task title: " + t.Title + ", Description: " + t.Description +
-		", Completed: " + strconv.FormatBool(t.Completed) + ", Created at: " + t.CreatedAt.String()
-}
+// todo: look into the auth stuff, add a username and password
 
-// AddToDoItem will add an item into the database
-func AddToDoItem(item *ToDoItem) error {
-	client, err := GetMongoClient()
+// NewMongoMsgDB returns a new mongo msg db that will connect to the addr provided
+// addr expected is in the format 'mongodb://<host>:<port>' e.g: "mongodb://localhost:27017"
+// default values to use for dbName and collectionName are: DefaultMsgDbName and DefaultMsgCollectionName
+func NewMongoMsgDB(addr, dbName, collectionName string) (*MongoMsgDB, error) {
+	m := &MongoMsgDB{}
+
+	clientOptions := options.Client().ApplyURI(addr)
+	ctx, _ := context.WithTimeout(context.Background(), defaultConnectTimeout)
+	client, err := mongo.Connect(ctx, clientOptions)
 	if err != nil {
-		log.Println("Error getting the mongo client: ", err.Error())
-		return err
+		log.Errorf("Failed to connect to mongo db with addr: %s; err: %s", addr, err.Error())
+		return nil, err
 	}
+	log.Debug("Successfully connected to mongo db at: ", addr)
 
-	// ??++ me pregunto si esta database y collection ya tienen que haber existido?
-	// y si no, no es ineficiente pullearlas siempre?
-	//Create a handle to the respective collection in the database.
-	collection := client.Database(dbName).Collection(collectionName)
-
-	_, err = collection.InsertOne(context.TODO(), item) // there's also InsertMany
+	// Check the connection
+	ctx, _ = context.WithTimeout(context.Background(), defaultConnectTimeout)
+	err = client.Ping(ctx, nil)
 	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// ??++ For sure there's gotta be a way to get the item by its id
-// GetToDoItemByCode will get the to do item associated with the given code
-func GetToDoItemByCode(code string) (*ToDoItem, error) {
-	item := &ToDoItem{}
-
-	//Define filter query for fetching specific document from collection
-	filter := bson.D{primitive.E{Key: "code", Value: code}}
-
-	//Get MongoDB connection using connectionhelper.
-	client, err := GetMongoClient()
-	if err != nil {
-		log.Println("Failed to get mongo client: ", err.Error())
+		log.Error("Failed to ping mongo db: ", err.Error())
 		return nil, err
 	}
 
-	collection := client.Database(dbName).Collection(collectionName)
+	m.client = client
+	m.msgCollection = client.Database(dbName).Collection(collectionName)
 
-	err = collection.FindOne(context.TODO(), filter).Decode(item)
+	return m, nil
+}
+
+func (m *MongoMsgDB) Close() {
+	ctx, _ := context.WithTimeout(context.Background(), defaultConnectTimeout)
+	err := m.client.Disconnect(ctx)
 	if err != nil {
-		log.Println("Failed to find document: ", err.Error())
+		log.Error("Failed to disconnect client from database: ", err.Error())
+	}
+}
+
+func (m *MongoMsgDB) GetMsg(id string) (*Msg, error) {
+	msg := &Msg{}
+
+	filter := bson.D{primitive.E{Key: "id", Value: id}}
+
+	ctx, _ := context.WithTimeout(context.Background(), defaultConnectTimeout)
+	err := m.msgCollection.FindOne(ctx, filter).Decode(msg)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, ErrMsgNotFound{}
+		}
+		log.Error("Failed to find msg: ", err.Error())
 		return nil, err
 	}
 
-	return item, nil
+	return msg, nil
 }
 
-// GetAllToDoItems will get all the to-do items from the database
-func GetAllToDoItems() ([]*ToDoItem, error) {
-	var items []*ToDoItem
+// todo: verify that if there's nothing it just returns an empty slice
+func (m *MongoMsgDB) GetAllMsgs() ([]*Msg, error) {
+	var msgs []*Msg
 
 	//bson.D{{}} specifies 'all documents'
 	filter := bson.D{{}}
 
-	//Get MongoDB connection using connectionhelper.
-	client, err := GetMongoClient()
-	if err != nil {
-		log.Println("Failed to get mongo client: ", err.Error())
-		return items, err
-	}
-
-	collection := client.Database(dbName).Collection(collectionName)
-
 	// cursor is like an iterator
-	cursor, err := collection.Find(context.TODO(), filter)
+	ctx, _ := context.WithTimeout(context.Background(), defaultConnectTimeout)
+	cursor, err := m.msgCollection.Find(ctx, filter)
 	if err != nil {
-		log.Println("Failed to find documents: ", err.Error())
-		return items, err
+		log.Error("Failed to find documents: ", err.Error())
+		return msgs, err
 	}
 
-	for cursor.Next(context.TODO()) {
-		t := &ToDoItem{}
-		err := cursor.Decode(t)
+	ctx, _ = context.WithTimeout(context.Background(), defaultConnectTimeout)
+	for cursor.Next(ctx) {
+		msg := &Msg{}
+		err = cursor.Decode(msg)
 		if err != nil {
-			return items, err
+			return msgs, err
 		}
-		items = append(items, t)
-	}
-	// once exhausted, close the cursor
-	_ = cursor.Close(context.TODO())
-	if len(items) == 0 {
-		return items, mongo.ErrNoDocuments
+		msgs = append(msgs, msg)
 	}
 
-	return items, nil
+	ctx, _ = context.WithTimeout(context.Background(), defaultConnectTimeout)
+	_ = cursor.Close(ctx)
+
+	return msgs, nil
 }
 
-// MarkCompleted will mark an item as completed
-func MarkCompleted(code string) (*ToDoItem, error) {
-	item := &ToDoItem{}
+func (m *MongoMsgDB) CreateMsg(msg *Msg) error {
+	_, err := m.GetMsg(msg.Id)
+	if err != nil {
+		if IsErrMsgNotFound(err) {
+			// we'll only add it if it wasn't found
+			ctx, _ := context.WithTimeout(context.Background(), defaultConnectTimeout)
+			_, err = m.msgCollection.InsertOne(ctx, msg)
+			if err != nil {
+				return err
+			}
+		} else {
+			return err
+		}
+	}
 
-	//Define filter query for fetching specific document from collection
-	filter := bson.D{primitive.E{Key: "code", Value: code}}
+	return ErrIdUnavailable{}
+}
 
-	//Define updater for to specifiy change to be updated.
+func (m *MongoMsgDB) UpdateMsg(msg *Msg) error {
+	filter := bson.D{primitive.E{Key: "id", Value: msg.Id}}
+
 	updater := bson.D{primitive.E{Key: "$set", Value: bson.D{
-		primitive.E{Key: "completed", Value: true},
+		primitive.E{Key: "content", Value: msg.Content},
+		primitive.E{Key: "isPalindrome", Value: msg.IsPalindrome},
+		primitive.E{Key: "modTime", Value: msg.ModTime},
 	}}}
 
-	//Get MongoDB connection using connectionhelper.
-	client, err := GetMongoClient()
+	ctx, _ := context.WithTimeout(context.Background(), defaultConnectTimeout)
+	result, err := m.msgCollection.UpdateOne(ctx, filter, updater)
 	if err != nil {
-		log.Println("Failed to get mongo client: ", err.Error())
-		return nil, err
-	}
-
-	collection := client.Database(dbName).Collection(collectionName)
-
-	_, err = collection.UpdateOne(context.TODO(), filter, updater)
-	if err != nil {
-		log.Println("Failed to update document: ", err.Error())
-		return nil, err
-	}
-
-	return item, nil
-}
-
-// DeleteToDoItem will delete an item from the collection
-func DeleteToDoItem(code string) error {
-	//Define filter query for fetching specific document from collection
-	filter := bson.D{primitive.E{Key: "code", Value: code}}
-
-	//Get MongoDB connection using connectionhelper.
-	client, err := GetMongoClient()
-	if err != nil {
-		log.Println("Failed to get mongo client: ", err.Error())
+		log.Error("Failed to update document: ", err.Error())
 		return err
 	}
-
-	collection := client.Database(dbName).Collection(collectionName)
-
-	_, err = collection.DeleteOne(context.TODO(), filter)
-	if err != nil {
-		log.Println("Failed to find document: ", err.Error())
-		return err
+	if result.MatchedCount == 0 {
+		return ErrMsgNotFound{}
 	}
 
 	return nil
 }
 
-/* Used to create a singleton object of MongoDB client.
-Initialized and exposed through  GetMongoClient().*/
-var clientInstance *mongo.Client
+func (m *MongoMsgDB) DeleteMsg(id string) error {
+	filter := bson.D{primitive.E{Key: "id", Value: id}}
 
-//Used during creation of singleton client object in GetMongoClient().
-var clientInstanceError error
-
-//Used to execute client creation procedure only once.
-var mongoOnce sync.Once
-
-//I have used below constants just to hold required database config's.
-const (
-	mongoAddr      = "mongodb://localhost:27017"
-	dbName         = "db_todo_list"
-	collectionName = "col_todo"
-)
-
-//GetMongoClient - Return mongodb connection to work with
-func GetMongoClient() (*mongo.Client, error) {
-	//Perform connection creation operation only once.
-	mongoOnce.Do(func() {
-		// Set client options
-		clientOptions := options.Client().ApplyURI(mongoAddr)
-		// Connect to MongoDB
-		client, err := mongo.Connect(context.TODO(), clientOptions)
-		if err != nil {
-			clientInstanceError = err
-		}
-		// Check the connection
-		// ??++ weird error handling
-		err = client.Ping(context.TODO(), nil)
-		if err != nil {
-			clientInstanceError = err
-		}
-		clientInstance = client
-	})
-	return clientInstance, clientInstanceError
-}
-
-// todo: delete this once the rest work:
-// test ones for the DB
-
-func addItemQuick() {
-	err := AddToDoItem(&ToDoItem{
-		Code:        "002",
-		CreatedAt:   time.Now(),
-		Title:       "Espero que ya este",
-		Description: "a salir",
-		Completed:   false,
-	})
+	ctx, _ := context.WithTimeout(context.Background(), defaultConnectTimeout)
+	result, err := m.msgCollection.DeleteOne(ctx, filter)
 	if err != nil {
-		log.Fatal("Failed to add todo item: ", err.Error())
+		log.Error("Failed to delete document: ", err.Error())
+		return err
 	}
-}
-
-func getAllItemsQuick() {
-	items, err := GetAllToDoItems()
-	if err != nil {
-		log.Fatal("Failed to add todo item: ", err.Error())
+	if result.DeletedCount == 0 {
+		return ErrMsgNotFound{}
 	}
 
-	log.Println("All items are: ")
-	for _, item := range items {
-		log.Println(item.ToString())
-	}
+	return nil
 }

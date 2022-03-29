@@ -24,6 +24,7 @@ func NewRepository(msgDb db.MsgDB) *Repository {
 func (rp *Repository) HandleCreateMsg(w http.ResponseWriter, r *http.Request) {
 	if r.Header.Get("Content-Type") != "application/json" {
 		handleReqErr(w, "Unsupported content type", http.StatusUnsupportedMediaType, "")
+		return
 	}
 
 	var msgRcv db.Msg
@@ -62,7 +63,7 @@ func (rp *Repository) HandleRetrieveAllMsgs(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	msgJson, err := json.Marshal(msgs)
+	msgJson, err := json.Marshal(map[string]interface{}{"messages": msgs})
 	if err != nil {
 		handleReqErr(w, "Unexpected error during marshalling of messages", http.StatusInternalServerError, err.Error())
 		return
@@ -108,6 +109,7 @@ func (rp *Repository) HandleRetrieveMsg(w http.ResponseWriter, r *http.Request) 
 func (rp *Repository) HandleUpdateMsg(w http.ResponseWriter, r *http.Request) {
 	if r.Header.Get("Content-Type") != "application/json" {
 		handleReqErr(w, "Unsupported content type", http.StatusUnsupportedMediaType, "")
+		return
 	}
 
 	id := mux.Vars(r)["id"]

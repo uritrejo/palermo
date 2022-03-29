@@ -46,6 +46,7 @@ func main() {
 	if err != nil {
 		log.Fatal("Failed to initialize database: ", err.Error())
 	}
+	defer msgDb.Close()
 
 	repo = handlers.NewRepository(msgDb)
 

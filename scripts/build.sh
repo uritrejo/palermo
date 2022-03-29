@@ -9,7 +9,7 @@ export GO111MODULE=on
 suffix=$(go env GOEXE)
 go build -o bin/palermo${suffix} cmd/main.go
 
-go test ./...
+go test -cover ./...
 
 
 exit 0

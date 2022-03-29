@@ -20,4 +20,6 @@ type MsgDB interface {
 	// DeleteMsg will delete the message associated with the id provided
 	// returns ErrMsgNotFound if a msg with such id wasn't found
 	DeleteMsg(id string) error
+
+	Close()
 }
