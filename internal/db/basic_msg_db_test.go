@@ -10,7 +10,6 @@ import (
 func TestNewBasicMsgDB(t *testing.T) {
 	db := NewBasicMsgDB()
 	assert.NotNil(t, db)
-	assert.NotNil(t, db.msgs)
 }
 
 func TestBasicMsgDB_CreateGetMsg(t *testing.T) {

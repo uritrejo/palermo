@@ -17,7 +17,8 @@ import (
 const (
 	defaultPort        = 4422
 	defaultDbType      = "basic"
-	defaultMongoDbAddr = "mongodb://localhost:27017"
+	mongoDbScheme      = "mongodb://"
+	defaultMongoDbAddr = "localhost:27017"
 	defaultLogLevel    = "debug"
 	logFile            = "palermo.log"
 )
@@ -28,12 +29,15 @@ var (
 
 func main() {
 	// flags
-	var dbType, logLevel, mongoDbAddr string
+	var dbType, logLevel, mongoDbAddr, tlsCertFile, tlsKeyFile string
 	var port int
 	flag.IntVar(&port, "port", defaultPort, "-port=<port>: port on which to listen and serve")
 	flag.StringVar(&dbType, "dbtype", defaultDbType, "-dbtype=<type>: types are 'basic' (local memory) and 'mongodb")
 	flag.StringVar(&mongoDbAddr, "mongodb-addr", defaultMongoDbAddr, "-mongodb-addr=<host>:<port>: port where mongo db is listening")
 	flag.StringVar(&logLevel, "loglevel", defaultLogLevel, "-loglevel=<level>: levels are info, debug, trace")
+	flag.StringVar(&tlsCertFile, "tlscert", "", "-tlscert=<path_to_cert.pem>: path to PEM encoded certificate file (if tls is required). "+
+		"tlskey must also be set for tls to be used")
+	flag.StringVar(&tlsKeyFile, "tlskey", "", "-tlskey=<path_to_key.pem>: path to PEM encoded private key file")
 	flag.Parse()
 
 	closer, err := initLogger(logLevel)
@@ -58,6 +62,15 @@ func main() {
 		ReadTimeout:  15 * time.Second,
 	}
 
+	if tlsCertFile != "" && tlsKeyFile != "" {
+		log.Info("Palermo server is listening on ", addr, " with TLS on")
+		err = server.ListenAndServeTLS(tlsCertFile, tlsKeyFile)
+		if err != nil {
+			log.Fatal("Failed to listen and serve: ", err.Error())
+		}
+	}
+
+	// no tls
 	log.Info("Palermo server is listening on ", addr)
 	err = server.ListenAndServe()
 	if err != nil {
@@ -74,8 +87,9 @@ func initDb(dbType, mongoDbAddr string) (db.MsgDB, error) {
 	if dbType == "basic" {
 		msgDb = db.NewBasicMsgDB()
 	} else if dbType == "mongodb" {
-		log.Info("Mongo DB port set to ", mongoDbAddr)
-		msgDb, err = db.NewMongoMsgDB(mongoDbAddr, db.DefaultMsgDbName, db.DefaultMsgCollectionName)
+		fullAddr := mongoDbScheme + mongoDbAddr
+		log.Info("Mongo DB port set to ", fullAddr)
+		msgDb, err = db.NewMongoMsgDB(fullAddr, db.DefaultMsgDbName, db.DefaultMsgCollectionName)
 		if err != nil {
 			log.Errorf("Failed to connect to mongo DB at addr %s, err: %s", mongoDbAddr, err.Error())
 			return nil, err

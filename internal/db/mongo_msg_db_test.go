@@ -8,8 +8,7 @@ import (
 
 var (
 	// runMongoDBTests shall be set to true to run this test suite, must have a mongo db set up at testMongoDBAddr
-	runMongoDBTests = false
-
+	runMongoDBTests    = false
 	testMongoDBAddr    = "mongodb://localhost:27017"
 	testDBName         = "testMsgDB"
 	testCollectionName = "testMsgCollection"

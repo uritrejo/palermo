@@ -30,7 +30,8 @@ func NewMongoMsgDB(addr, dbName, collectionName string) (*MongoMsgDB, error) {
 	m := &MongoMsgDB{}
 
 	clientOptions := options.Client().ApplyURI(addr)
-	ctx, _ := context.WithTimeout(context.Background(), defaultConnectTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), defaultConnectTimeout)
+	defer cancel()
 	client, err := mongo.Connect(ctx, clientOptions)
 	if err != nil {
 		log.Errorf("Failed to connect to mongo db with addr: %s; err: %s", addr, err.Error())
@@ -39,7 +40,8 @@ func NewMongoMsgDB(addr, dbName, collectionName string) (*MongoMsgDB, error) {
 	log.Debug("Successfully connected to mongo db at: ", addr)
 
 	// Check the connection
-	ctx, _ = context.WithTimeout(context.Background(), defaultConnectTimeout)
+	ctx, cancel2 := context.WithTimeout(context.Background(), defaultConnectTimeout)
+	defer cancel2()
 	err = client.Ping(ctx, nil)
 	if err != nil {
 		log.Error("Failed to ping mongo db: ", err.Error())
@@ -53,7 +55,8 @@ func NewMongoMsgDB(addr, dbName, collectionName string) (*MongoMsgDB, error) {
 }
 
 func (m *MongoMsgDB) Close() {
-	ctx, _ := context.WithTimeout(context.Background(), defaultConnectTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), defaultConnectTimeout)
+	defer cancel()
 	err := m.client.Disconnect(ctx)
 	if err != nil {
 		log.Error("Failed to disconnect client from database: ", err.Error())
@@ -65,7 +68,8 @@ func (m *MongoMsgDB) GetMsg(id string) (*Msg, error) {
 
 	filter := bson.D{primitive.E{Key: "id", Value: id}}
 
-	ctx, _ := context.WithTimeout(context.Background(), defaultConnectTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), defaultConnectTimeout)
+	defer cancel()
 	err := m.msgCollection.FindOne(ctx, filter).Decode(msg)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
@@ -86,14 +90,16 @@ func (m *MongoMsgDB) GetAllMsgs() ([]*Msg, error) {
 	filter := bson.D{{}}
 
 	// cursor is like an iterator
-	ctx, _ := context.WithTimeout(context.Background(), defaultConnectTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), defaultConnectTimeout)
+	defer cancel()
 	cursor, err := m.msgCollection.Find(ctx, filter)
 	if err != nil {
 		log.Error("Failed to find documents: ", err.Error())
 		return msgs, err
 	}
 
-	ctx, _ = context.WithTimeout(context.Background(), defaultConnectTimeout)
+	ctx, cancel2 := context.WithTimeout(context.Background(), defaultConnectTimeout)
+	defer cancel2()
 	for cursor.Next(ctx) {
 		msg := &Msg{}
 		err = cursor.Decode(msg)
@@ -103,7 +109,8 @@ func (m *MongoMsgDB) GetAllMsgs() ([]*Msg, error) {
 		msgs = append(msgs, msg)
 	}
 
-	ctx, _ = context.WithTimeout(context.Background(), defaultConnectTimeout)
+	ctx, cancel3 := context.WithTimeout(context.Background(), defaultConnectTimeout)
+	defer cancel3()
 	_ = cursor.Close(ctx)
 
 	return msgs, nil
@@ -114,7 +121,8 @@ func (m *MongoMsgDB) CreateMsg(msg *Msg) error {
 	if err != nil {
 		if IsErrMsgNotFound(err) {
 			// we'll only add it if it wasn't found
-			ctx, _ := context.WithTimeout(context.Background(), defaultConnectTimeout)
+			ctx, cancel := context.WithTimeout(context.Background(), defaultConnectTimeout)
+			defer cancel()
 			_, err = m.msgCollection.InsertOne(ctx, msg)
 			if err != nil {
 				return err
@@ -138,7 +146,8 @@ func (m *MongoMsgDB) UpdateMsg(msg *Msg) error {
 		primitive.E{Key: "modTime", Value: msg.ModTime},
 	}}}
 
-	ctx, _ := context.WithTimeout(context.Background(), defaultConnectTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), defaultConnectTimeout)
+	defer cancel()
 	result, err := m.msgCollection.UpdateOne(ctx, filter, updater)
 	if err != nil {
 		log.Error("Failed to update document: ", err.Error())
@@ -154,7 +163,8 @@ func (m *MongoMsgDB) UpdateMsg(msg *Msg) error {
 func (m *MongoMsgDB) DeleteMsg(id string) error {
 	filter := bson.D{primitive.E{Key: "id", Value: id}}
 
-	ctx, _ := context.WithTimeout(context.Background(), defaultConnectTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), defaultConnectTimeout)
+	defer cancel()
 	result, err := m.msgCollection.DeleteOne(ctx, filter)
 	if err != nil {
 		log.Error("Failed to delete document: ", err.Error())
