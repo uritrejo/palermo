@@ -7,8 +7,9 @@ import (
 )
 
 var (
-	// set runMongoDBTests to true to run this test suite, must have a mongo db set up at testMongoDBAddr
-	runMongoDBTests    = true
+	// runMongoDBTests shall be set to true to run this test suite, must have a mongo db set up at testMongoDBAddr
+	runMongoDBTests = false
+
 	testMongoDBAddr    = "mongodb://localhost:27017"
 	testDBName         = "testMsgDB"
 	testCollectionName = "testMsgCollection"
@@ -20,6 +21,7 @@ func TestNewMongoMsgDB(t *testing.T) {
 	}
 	db, err := NewMongoMsgDB(testMongoDBAddr, testDBName, testCollectionName)
 	assert.Nil(t, err)
+	defer db.Close()
 	defer db.client.Database(testDBName).Drop(context.TODO())
 
 	assert.NotNil(t, db.client)
@@ -32,6 +34,7 @@ func TestMongoMsgDB_CreateGetMsg(t *testing.T) {
 	}
 	db, err := NewMongoMsgDB(testMongoDBAddr, testDBName, testCollectionName)
 	assert.Nil(t, err)
+	defer db.Close()
 	defer db.client.Database(testDBName).Drop(context.TODO())
 
 	msg1 := NewMsg("unicorn", "kayak")
@@ -47,14 +50,14 @@ func TestMongoMsgDB_CreateGetMsg(t *testing.T) {
 	assert.Equal(t, msg1.Id, retMsg1.Id)
 	assert.Equal(t, msg1.Content, retMsg1.Content)
 	assert.Equal(t, msg1.IsPalindrome, retMsg1.IsPalindrome)
-	assert.True(t, msg1.ModTime.Equal(retMsg1.ModTime))
+	assert.EqualValues(t, msg1.ModTime.Unix(), retMsg1.ModTime.Unix())
 
 	retMsg2, err := db.GetMsg("1234")
 	assert.Nil(t, err)
 	assert.Equal(t, msg2.Id, retMsg2.Id)
 	assert.Equal(t, msg2.Content, retMsg2.Content)
 	assert.Equal(t, msg2.IsPalindrome, retMsg2.IsPalindrome)
-	assert.True(t, msg2.ModTime.Equal(retMsg2.ModTime))
+	assert.EqualValues(t, msg2.ModTime.Unix(), retMsg2.ModTime.Unix())
 }
 
 func TestMongoMsgDB_CreateMsg_ErrIdUnavailable(t *testing.T) {
@@ -63,6 +66,7 @@ func TestMongoMsgDB_CreateMsg_ErrIdUnavailable(t *testing.T) {
 	}
 	db, err := NewMongoMsgDB(testMongoDBAddr, testDBName, testCollectionName)
 	assert.Nil(t, err)
+	defer db.Close()
 	defer db.client.Database(testDBName).Drop(context.TODO())
 
 	msg1 := NewMsg("fly", "this is the message")
@@ -81,6 +85,7 @@ func TestMongoMsgDB_GetMsg_ErrMsgNotFound(t *testing.T) {
 	}
 	db, err := NewMongoMsgDB(testMongoDBAddr, testDBName, testCollectionName)
 	assert.Nil(t, err)
+	defer db.Close()
 	defer db.client.Database(testDBName).Drop(context.TODO())
 
 	msg, err := db.GetMsg("potato")
@@ -100,6 +105,7 @@ func TestMongoMsgDB_GetAllMsgs(t *testing.T) {
 	}
 	db, err := NewMongoMsgDB(testMongoDBAddr, testDBName, testCollectionName)
 	assert.Nil(t, err)
+	defer db.Close()
 	defer db.client.Database(testDBName).Drop(context.TODO())
 
 	msgs, err := db.GetAllMsgs()
@@ -137,6 +143,7 @@ func TestMongoMsgDB_UpdateMsg(t *testing.T) {
 	}
 	db, err := NewMongoMsgDB(testMongoDBAddr, testDBName, testCollectionName)
 	assert.Nil(t, err)
+	defer db.Close()
 	defer db.client.Database(testDBName).Drop(context.TODO())
 
 	msg := NewMsg("pegasus", "123456")
@@ -160,6 +167,7 @@ func TestMongoMsgDB_UpdateMsg_ErrMsgNotFound(t *testing.T) {
 	}
 	db, err := NewMongoMsgDB(testMongoDBAddr, testDBName, testCollectionName)
 	assert.Nil(t, err)
+	defer db.Close()
 	defer db.client.Database(testDBName).Drop(context.TODO())
 
 	newMsg := NewMsg("nonexistent", "iAmGroot")
@@ -177,6 +185,7 @@ func TestMongoMsgDB_DeleteMsg(t *testing.T) {
 
 	db, err := NewMongoMsgDB(testMongoDBAddr, testDBName, testCollectionName)
 	assert.Nil(t, err)
+	defer db.Close()
 	defer db.client.Database(testDBName).Drop(context.TODO())
 
 	msg := NewMsg("helloMsg", "goodbye my friend")

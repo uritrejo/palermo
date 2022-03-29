@@ -13,7 +13,7 @@ import (
 const (
 	DefaultMsgDbName         = "msgDB"
 	DefaultMsgCollectionName = "msgCollection"
-	defaultConnectTimeout    = 7 * time.Second
+	defaultConnectTimeout    = 5 * time.Second
 )
 
 // MongoMsgDB will store the messages in the database running on the address provided
@@ -22,9 +22,8 @@ type MongoMsgDB struct {
 	msgCollection *mongo.Collection // we could get it from the client, but this saves a lot of redundant code
 }
 
-// todo: look into the auth stuff, add a username and password
-
 // NewMongoMsgDB returns a new mongo msg db that will connect to the addr provided
+// for now it won't take in a password or user name, only unauthenticated access is available
 // addr expected is in the format 'mongodb://<host>:<port>' e.g: "mongodb://localhost:27017"
 // default values to use for dbName and collectionName are: DefaultMsgDbName and DefaultMsgCollectionName
 func NewMongoMsgDB(addr, dbName, collectionName string) (*MongoMsgDB, error) {
@@ -123,9 +122,11 @@ func (m *MongoMsgDB) CreateMsg(msg *Msg) error {
 		} else {
 			return err
 		}
+	} else {
+		// the message with such Id was already found
+		return ErrIdUnavailable{}
 	}
-
-	return ErrIdUnavailable{}
+	return nil
 }
 
 func (m *MongoMsgDB) UpdateMsg(msg *Msg) error {

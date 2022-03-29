@@ -17,7 +17,7 @@ import (
 const (
 	defaultPort        = 4422
 	defaultDbType      = "basic"
-	defaultMongoDbPort = 27017
+	defaultMongoDbAddr = "mongodb://localhost:27017"
 	defaultLogLevel    = "debug"
 	logFile            = "palermo.log"
 )
@@ -28,11 +28,11 @@ var (
 
 func main() {
 	// flags
-	var dbType, logLevel string
-	var port, mongoDbPort int
+	var dbType, logLevel, mongoDbAddr string
+	var port int
 	flag.IntVar(&port, "port", defaultPort, "-port=<port>: port on which to listen and serve")
 	flag.StringVar(&dbType, "dbtype", defaultDbType, "-dbtype=<type>: types are 'basic' (local memory) and 'mongodb")
-	flag.IntVar(&mongoDbPort, "mongodbport", defaultMongoDbPort, "-mongodbport=<port>: port where mongo db is listening")
+	flag.StringVar(&mongoDbAddr, "mongodb-addr", defaultMongoDbAddr, "-mongodb-addr=<host>:<port>: port where mongo db is listening")
 	flag.StringVar(&logLevel, "loglevel", defaultLogLevel, "-loglevel=<level>: levels are info, debug, trace")
 	flag.Parse()
 
@@ -42,7 +42,7 @@ func main() {
 	}
 	defer closer.Close()
 
-	msgDb, err := initDb(dbType, mongoDbPort)
+	msgDb, err := initDb(dbType, mongoDbAddr)
 	if err != nil {
 		log.Fatal("Failed to initialize database: ", err.Error())
 	}
@@ -66,15 +66,20 @@ func main() {
 }
 
 // initDb creates the required database instance
-// returns a
-func initDb(dbType string, mongoDbPort int) (db.MsgDB, error) {
+// dbType can be "basic" or "mongodb"
+// mongoDbAddr only needs to be specified if dbType is "mongodb"
+func initDb(dbType, mongoDbAddr string) (db.MsgDB, error) {
 	var err error
 	var msgDb db.MsgDB
 	if dbType == "basic" {
 		msgDb = db.NewBasicMsgDB()
 	} else if dbType == "mongodb" {
-		log.Info("Mongo DB port set to ", mongoDbPort)
-		return nil, errors.New("MongoDB not implemented yet")
+		log.Info("Mongo DB port set to ", mongoDbAddr)
+		msgDb, err = db.NewMongoMsgDB(mongoDbAddr, db.DefaultMsgDbName, db.DefaultMsgCollectionName)
+		if err != nil {
+			log.Errorf("Failed to connect to mongo DB at addr %s, err: %s", mongoDbAddr, err.Error())
+			return nil, err
+		}
 	} else {
 		return nil, errors.New("unsupported db type: " + dbType)
 	}
@@ -116,7 +121,6 @@ func router() http.Handler {
 	router.HandleFunc("/v1/retrieveAllMsgs", repo.HandleRetrieveAllMsgs)
 	router.HandleFunc("/v1/updateMsg/{id}", repo.HandleUpdateMsg).Methods("POST")
 	router.HandleFunc("/v1/deleteMsg/{id}", repo.HandleDeleteMsg)
-
 	// middlewares
 	router.Use(handlers.RecoveryMiddleware)
 	router.Use(handlers.LoggingMiddleware)
